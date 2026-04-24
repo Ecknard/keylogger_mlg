@@ -97,8 +97,7 @@ PATTERNS = {
         r')'
         r'(?!\d)',
         re.IGNORECASE
-    ),
-}
+    )
 
     # ── Carte bancaire ────────────────────────────────────────────────────────
     # 16 chiffres groupés par 4 (séparateur optionnel espace ou tiret)
