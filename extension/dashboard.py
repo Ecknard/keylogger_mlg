@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT))
 
 # ── Config Streamlit ──────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="AI Keylogger · Sentiment Multilingue",
+    page_title="AI Keylogger · Sentiment ML Multilingue",
     page_icon="🌐",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -634,7 +634,7 @@ def render_header(kpis: dict, ts: datetime) -> None:
     mood = "😊" if sc > .3 else "😔" if sc < -.3 else "😐"
     st.markdown(f"""
     <div class="dash-header">
-        <h1>🌐 AI Keylogger · Supervision Multilingue</h1>
+        <h1>🌐 AI Keylogger · Sentiment ML — FR/EN/ES/DE/IT</h1>
         <p>TP1 IA & Cybersécurité · {ts.strftime('%d/%m/%Y %H:%M:%S')} ·
            Humeur globale : {mood} {sc:+.3f} · {kpis['phrases']} phrases · {kpis['lang_count']} langue(s)</p>
     </div>""", unsafe_allow_html=True)
@@ -759,7 +759,7 @@ def render_sidebar(kpis: dict) -> dict:
         <div style="padding:12px 0;border-bottom:1px solid #1e2730;margin-bottom:16px;">
             <div style="font-family:'JetBrains Mono',monospace;font-size:.72em;color:#8b949e;
                         text-transform:uppercase;letter-spacing:.1em;">AI Keylogger</div>
-            <div style="font-size:1.1em;font-weight:700;color:#e6edf3;">🌐 Multilingue v3</div>
+            <div style="font-size:1.1em;font-weight:700;color:#e6edf3;">🌐 Multilingue v4 · ML</div>
         </div>""", unsafe_allow_html=True)
 
         view    = st.selectbox("Vue", ["Vue globale","Sentiments","Anomalies",
@@ -790,9 +790,8 @@ def render_sidebar(kpis: dict) -> dict:
         st.markdown("""
         <div style="font-family:'JetBrains Mono',monospace;font-size:.7em;color:#484f58;">
             <b style="color:#8b949e;">Langues supportées :</b><br>
-            🇫🇷 FR · 🇬🇧 EN · 🇪🇸 ES<br>
-            🇩🇪 DE · 🇮🇹 IT · 🇵🇹 PT · 🇳🇱 NL<br>
-            <br>+ détection auto : AR ZH JA KO RU PL…
+            🇫🇷 FR · 🇬🇧 EN · 🇪🇸 ES · 🇩🇪 DE · 🇮🇹 IT<br>
+            <br><i>Modèle ML — char N-gram<br>sans lexique ni dictionnaire</i>
         </div>""", unsafe_allow_html=True)
 
     return {"view": view, "refresh": refresh, "n_sent": n_sent, "n_log": n_log}
