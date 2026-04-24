@@ -12,10 +12,6 @@ CORRECTIFS v2 :
     ✅ THREAD-SAFE — lock sur le buffer avant chaque flush.
     ✅ MÉTADONNÉES — sauvegarde continue dans metadata.json.
 
-⚠️  USAGE ÉTHIQUE UNIQUEMENT — cadre pédagogique.
-    Toute utilisation sans consentement explicite est illégale (RGPD, Loi Godfrain).
-"""
-
 import json
 import os
 import sys
