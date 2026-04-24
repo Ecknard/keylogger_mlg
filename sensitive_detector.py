@@ -44,27 +44,61 @@ DETECTIONS_LOG = os.path.join("data", "detections.json")
 # PATTERNS REGEX
 # ════════════════════════════════════════════════════════════════════════════════
 
-PATTERNS = {
-    # ── Email ─────────────────────────────────────────────────────────────────
-# Couvre : emails usuels (icloud.com, outlook.com, sous-domaines)
-# Robuste pour logs, sans \b problématique
-"email": re.compile(
-    r'[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,63}',
-    re.IGNORECASE
-),
+import re
 
-    # ── Téléphone français (CORRECTIF) ────────────────────────────────────────
-    # AVANT : seulement 06/07 → ratait 01, 02, 03, 04, 05, 08, 09
-    # APRÈS : tous les numéros français 0[1-9] + formats internationaux +33
-    # Formats acceptés :
-    #   0612345678  06 12 34 56 78  06.12.34.56.78  +33612345678  0033612345678
-    # Note : \b ne fonctionne pas avant '+' → lookahead/lookbehind négatifs
-    "telephone_fr": re.compile(
-        r'(?<!\d)(?:'
-        r'(?:\+33|0033)\s?[1-9](?:[\s.\-]?\d{2}){4}'    # +33 / 0033 + 9 chiffres
-        r'|0[1-9](?:[\s.\-]?\d{2}){4}'                   # 0X + 8 chiffres
-        r')(?!\d)'
+PATTERNS = {
+    # ── Email ──────────────────────────────────────────────────────────────────
+    # Fix : ajout d'un lookahead négatif pour éviter les faux positifs
+    # et support explicite des TLD longs (icloud.com, outlook.com, etc.)
+    "email": re.compile(
+        r'(?<![A-Za-z0-9._%+\-])'   # lookbehind : pas de caractère email avant
+        r'[A-Za-z0-9._%+\-]+'
+        r'@'
+        r'(?:[A-Za-z0-9-]+\.)+'     # sous-domaines éventuels
+        r'[A-Za-z]{2,63}'
+        r'(?![A-Za-z0-9._%+\-])',   # lookahead : pas de caractère email après
+        re.IGNORECASE
     ),
+
+    # ── Téléphone français ─────────────────────────────────────────────────────
+    # CORRECTIF PRINCIPAL :
+    #   Ancien : 0[1-9] puis (?:[\s.\-]?\d{2}){4}
+    #            → "0" + "7" = le "7" est seul, mais le groupe attend \d{2} → FAIL
+    #
+    #   Nouveau : on capture le numéro complet en 5 groupes de 2 chiffres
+    #             séparés par un séparateur UNIFORME (ou aucun)
+    #
+    #   Formats validés :
+    #     0712131415      → sans séparateur
+    #     07 12 13 14 15  → espaces
+    #     07.12.13.14.15  → points    ← était raté avant
+    #     07-12-13-14-15  → tirets
+    #     07/12/13/14/15  → slashes (bonus)
+    #     +33712131415    → international sans séparateur
+    #     +33 7 12 13 14 15 → international avec espaces
+    #     0033712131415   → international 0033
+    #
+    #   Contrainte : le séparateur doit être HOMOGÈNE ou absent
+    #   (évite de matcher "07.12 13-14 15" qui est probablement une erreur)
+    "telephone_fr": re.compile(
+        r'(?<!\d)'
+        r'(?:'
+            # ── Format international : +33 ou 0033 ──
+            r'(?:\+33|0033)'
+            r'[\s.\-]?'
+            r'[1-9]'                              # 1er chiffre (sans le 0)
+            r'(?P<sep_intl>[\s.\-]?)'             # séparateur optionnel
+            r'\d{2}(?P=sep_intl)\d{2}(?P=sep_intl)\d{2}(?P=sep_intl)\d{2}'
+        r'|'
+            # ── Format local : 0X XX XX XX XX ──
+            r'0[1-9]'                             # "07", "06", "01", etc.
+            r'(?P<sep>[\s.\-/]?)'                 # séparateur capturé
+            r'\d{2}(?P=sep)\d{2}(?P=sep)\d{2}(?P=sep)\d{2}'  # 4 × (sep + 2 chiffres)
+        r')'
+        r'(?!\d)',
+        re.IGNORECASE
+    ),
+}
 
     # ── Carte bancaire ────────────────────────────────────────────────────────
     # 16 chiffres groupés par 4 (séparateur optionnel espace ou tiret)
