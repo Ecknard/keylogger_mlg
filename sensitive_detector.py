@@ -2,7 +2,7 @@
 sensitive_detector.py — Partie III : Classification de données sensibles
 TP1 — Intelligence Artificielle & Cybersécurité
 
-CORRECTIFS v2 :
+Details :
     ✅ REGEX TÉLÉPHONE — Couverture étendue à TOUS les numéros FR 0X (01–09)
        pas seulement 06/07. Formats acceptés : 0612345678, 06 12 34 56 78,
        06.12.34.56.78, +33612345678.
@@ -46,10 +46,12 @@ DETECTIONS_LOG = os.path.join("data", "detections.json")
 
 PATTERNS = {
     # ── Email ─────────────────────────────────────────────────────────────────
-    # Couvre : utilisateur@domaine.tld, sous-domaines, TLDs longs (.museum etc.)
-    "email": re.compile(
-        r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b'
-    ),
+# Couvre : emails usuels (icloud.com, outlook.com, sous-domaines)
+# Robuste pour logs, sans \b problématique
+"email": re.compile(
+    r'[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,63}',
+    re.IGNORECASE
+),
 
     # ── Téléphone français (CORRECTIF) ────────────────────────────────────────
     # AVANT : seulement 06/07 → ratait 01, 02, 03, 04, 05, 08, 09
