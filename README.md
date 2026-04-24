@@ -228,7 +228,7 @@ def report(interval=10):
 
 La version initiale utilisait VADER, un dictionnaire anglophone. Elle ne reconnaissait aucune phrase francaise negative : `"je suis en detresse"`, `"c est penible"`, `"quel cata"` retournaient toutes un score de 0.000, produisant une ligne plate dans le dashboard.
 
-La version 4 abandonne completement l'approche par dictionnaire au profit d'un modele d'apprentissage automatique entraine sur un corpus multilingue.
+Nous proposont une version qui abandonne completement l'approche par dictionnaire au profit d'un modele d'apprentissage automatique entrainé sur un corpus multilingue.
 
 **Pipeline ML :**
 
