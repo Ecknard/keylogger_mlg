@@ -2,7 +2,7 @@
 keylogger.py — Partie I : Capture et enregistrement des frappes clavier
 TP1 — Intelligence Artificielle & Cybersécurité
 
-CORRECTIFS v2 :
+Details :
     ✅ BUG AZERTY — Les touches numériques sans Shift retournaient les caractères
        non-shiftés du clavier AZERTY (à, ç, é, ", ', (, -, è, _, ç) au lieu des
        chiffres (0-9). Correction via key.vk (virtual key code indépendant du layout).
