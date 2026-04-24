@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 # ── Config Streamlit ──────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="AI Keylogger · Sentiment ML Multilingue",
-    page_icon="🌐",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
