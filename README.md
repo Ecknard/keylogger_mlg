@@ -1,5 +1,6 @@
 # AI-Driven Keylogger — TP1 Intelligence Artificielle et Cybersecurite
 
+SUP DE VINCI — Projet pedagogique complet et commente
 
 ---
 
@@ -105,7 +106,7 @@ streamlit run extension/dashboard.py
 # Ouvrir http://localhost:8501
 ```
 
-Le dashboard lit directement les fichiers JSON sans aucun cache. Il se rafraichit toutes les N secondes (configurable dans la barre laterale) via `st.rerun()`. Un indicateur de fraicheur signale si le keylogger est actif ou inactif.
+Le dashboard lit directement les fichiers JSON et se rafraichit toutes les N secondes (configurable dans la barre laterale) via `st.rerun()`. Un indicateur de fraicheur signale si le keylogger est actif ou inactif.
 
 ### Tester les modules independamment
 
@@ -170,7 +171,9 @@ Un keylogger est un programme qui intercepte et enregistre les evenements clavie
 
 ---
 
-### Tache 4 — Question 4.2 — Bloc try/except
+### Tache 4 — Capture et traitement des touches
+
+#### Question 4.2 — Bloc try/except
 
 Les touches speciales (Ctrl, Alt, F1...) sont des instances de `pynput.keyboard.Key` et n'ont pas d'attribut `.char`. Tenter d'acceder a `key.char` leve une `AttributeError`. Le bloc `try/except AttributeError` permet de distinguer les deux cas :
 
@@ -181,15 +184,13 @@ except AttributeError:
     pass                  # Touche speciale : traitement separe
 ```
 
-#### Correctif clavier AZERTY (v2)
+#### Gestion du clavier AZERTY
 
-Sur un clavier AZERTY, appuyer sur la touche physique `0` sans Shift produit le caractere `a` accent grave, la touche `9` produit `c` cedille, et ainsi de suite. pynput retourne `key.char` correspondant au caractere non-shifte, ce qui rendait illisibles les numeros de telephone et les adresses email saisies sans Shift.
-
-Correction appliquee dans `keylogger.py` : utilisation de `key.vk` (virtual key code, independant du layout clavier). Les touches physiques 0 a 9 ont toujours `vk = 48` a `57`. Si `vk` est dans cette plage et que `key.char` n'est pas deja un chiffre (cas Shift enfonce), le chiffre correct est substitue. Les caracteres AltGr (`@`, `#`, `{`) sont preserves.
+Sur un clavier AZERTY, le caractere non-shifte des touches numeriques est `a` accent grave, `&`, `e` accent aigu, `"`, `'`, `(`, `-`, `e` accent grave, `_`, `c` cedille. Pour que les chiffres saisis soient correctement enregistres, `processkeys()` s'appuie sur `key.vk` (virtual key code) qui est independant du layout clavier. Les touches physiques `0` a `9` ont toujours `vk` dans la plage 48-57 (rangee du haut) ou 96-105 (pave numerique), ce qui permet de substituer le bon chiffre. Les caracteres AltGr (`@`, `#`, `{`) sont preserves.
 
 ---
 
-### Tache 5 — Questions
+### Tache 5 — Persistence dans un fichier log
 
 #### Question 5.2 — Modes de fichier
 
@@ -210,25 +211,33 @@ def report(interval=10):
     timer.start()  # se relance lui-meme indefiniment, sans bloquer
 ```
 
-#### Question 5.4 — Points faibles et ameliorations apportees
+#### Question 5.4 — Points faibles du keylogger de base et solutions apportees
 
-| Dimension | Point faible initial | Amelioration apportee |
-|-----------|---------------------|----------------------|
-| Encodage clavier | Chiffres AZERTY stockes comme caracteres speciaux | Correction via `key.vk` dans `processkeys()` |
-| Pipeline IA | `report()` n'appelait aucun analyseur | Appel de `sentiment_analyzer` et `sensitive_detector` a chaque flush |
-| Dashboard | Cache `@st.cache_data` bloquait la lecture des nouveaux fichiers | Lecture directe sans cache, `st.rerun()` controle |
+| Dimension | Point faible | Solution dans ce projet |
+|-----------|-------------|------------------------|
+| Pipeline IA | Un keylogger brut ne fait aucune analyse | `report()` appelle `sentiment_analyzer` et `sensitive_detector` a chaque flush |
+| Thread-safety | Acces concurrents au buffer entre capture et flush | Verrou `threading.Lock` sur `log` et `keystroke_metadata` |
 | Contexte | Aucune information sur l'application active | Extension B (`app_context.py`) |
-| Securite log | Fichier en clair sur le disque | Chiffrement AES-256-GCM (Extension C) |
+| Securite du log | Fichier en clair sur le disque | Chiffrement AES-256-GCM (Extension C) |
+| Encodage clavier | Mauvaise interpretation des chiffres sur AZERTY | Utilisation de `key.vk` dans `processkeys()` |
 
 ---
 
-### Tache 6 — Moteur de sentiment multilingue (v4)
+### Tache 6 — Moteur de sentiment multilingue
 
-#### Choix architectural : Character N-gram TF-IDF + Regression Logistique
+#### Choix de l'approche : Character N-gram TF-IDF + Regression Logistique
 
-La version initiale utilisait VADER, un dictionnaire anglophone. Elle ne reconnaissait aucune phrase francaise negative : `"je suis en detresse"`, `"c est penible"`, `"quel cata"` retournaient toutes un score de 0.000, produisant une ligne plate dans le dashboard.
+Le sujet propose plusieurs bibliotheques pour l'analyse de sentiments : VADER, TextBlob, Transformers HuggingFace, CamemBERT/FlauBERT. Le choix effectue s'appuie sur une analyse des contraintes reelles du projet.
 
-Nous proposont une version qui abandonne completement l'approche par dictionnaire au profit d'un modele d'apprentissage automatique entrainé sur un corpus multilingue.
+**Justification du choix vis-a-vis des approches proposees :**
+
+| Approche proposee | Contrainte identifiee | Decision |
+|------------------|----------------------|----------|
+| VADER (vaderSentiment) | Dictionnaire anglophone uniquement, incapable de traiter les frappes francaises qui constituent la majorite du flux attendu | Ecartee |
+| TextBlob | Necessite une traduction intermediaire pour chaque langue, latence et dependance reseau incompatibles avec le temps reel | Ecartee |
+| Transformers HuggingFace | Modeles de plusieurs centaines de Mo, chargement long, empreinte memoire elevee, GPU recommande | Ecartee |
+| CamemBERT / FlauBERT | Excellent en francais mais mono-langue, requiert un fine-tuning specifique | Ecartee |
+| TF-IDF char n-grams + Logistic Regression | Multilingue par nature (apprentissage morphologique), modele de moins de 1 Mo, inference en millisecondes, aucun telechargement externe | Retenue |
 
 **Pipeline ML :**
 
@@ -274,51 +283,108 @@ Les sequences de 2 a 5 caracteres capturent automatiquement les patterns morphol
 | `confidence` | float | Confiance de l'analyse sentiment |
 | `prob_pos` | float | Probabilite brute classe positive |
 
-**Entraînement automatique :**
+**Entrainement automatique :**
 
 Le modele est entraine au premier lancement et serialise dans `data/sentiment_model.joblib`. Les executions suivantes chargent directement le modele depuis le disque. Aucun telechargement reseau n'est necessaire.
 
 **Cas limite : textes tres courts**
 
-Les textes de moins de 2 mots sont classes `trop_court` et ne sont pas sauvegardes dans `sentiments.json`. Cette valeur minimale (inferieure aux 3 mots de la version precedente) permet de capturer des saisies courtes frequentes en contexte clavier.
+Les textes de moins de 2 mots sont classes `trop_court` et ne sont pas sauvegardes dans `sentiments.json`.
 
 ---
 
 ### Tache 7 — Detection d'anomalies comportementales
 
-**Collecte :** 30 a 60 minutes de frappe normale sont necessaires pour etablir un profil de reference fiable.
+#### Choix de l'algorithme : Isolation Forest
 
-**Normalisation :** les features ont des echelles tres differentes (delais en secondes, ratios entre 0 et 1). Sans normalisation par `StandardScaler`, les features a grande echelle domineraient le calcul de distance et biaiseraient le modele.
+Le sujet propose quatre algorithmes de detection d'anomalies : Isolation Forest, One-Class SVM, Autoencoder, Local Outlier Factor (LOF).
 
-**Parametre de contamination :** valeur initiale de 0.05 (5 %). A ajuster a la baisse si le taux de faux positifs observes est trop eleve en production.
+**Justification du choix vis-a-vis des approches proposees :**
+
+| Algorithme propose | Analyse | Decision |
+|-------------------|---------|----------|
+| One-Class SVM | Sensible au choix du noyau et des hyperparametres, cout quadratique sur les grands jeux de donnees | Ecartee |
+| Autoencoder | Requiert TensorFlow/Keras, entrainement long, surdimensionne pour 8 features | Ecartee |
+| LOF | Adapte aux anomalies locales, mais cout O(n²), difficile en temps reel sur une fenetre glissante | Ecartee |
+| Isolation Forest | Lineaire en temps d'entrainement, pas de noyau a choisir, contamination parametrable, excellent sur donnees multidimensionnelles | Retenue |
+
+**Pipeline :**
+
+```
+Collecte de 100+ evenements de frappe
+  → extract_features() sur fenetres glissantes de 20 frappes
+  → 8 features : delais (min/max/mean/std/median), ratios de types de touches, burst_count
+  → StandardScaler (obligatoire car echelles tres differentes)
+  → IsolationForest(contamination=0.05, n_estimators=100, random_state=42)
+  → predict() : -1 = anomalie, 1 = normal
+  → si anomalie detectee → alerts.json (append)
+```
+
+**Parametres retenus :**
+
+- **Collecte :** 30 a 60 minutes de frappe normale pour etablir un profil de reference fiable. Minimum absolu fixe a 100 evenements (`MIN_SAMPLES_TRAIN`).
+- **Normalisation :** `StandardScaler` obligatoire car les features ont des echelles tres differentes (delais en secondes entre 0 et plusieurs secondes, ratios entre 0 et 1). Sans normalisation, les delais domineraient le calcul de distance.
+- **Contamination :** 0.05 (5 %) en valeur par defaut. A ajuster a la baisse si le taux de faux positifs observes est trop eleve en production.
+- **Fenetre glissante :** 20 frappes consecutives (`WINDOW_SIZE`), verifiees toutes les 5 secondes par le thread daemon `AnomalyMonitor`.
 
 ---
 
 ### Tache 8 — Classification de donnees sensibles
 
-#### Approche hybride : Regex valide + Random Forest
+#### Approche hybride : Regex validees + Random Forest
 
-**Regex avec post-validation :**
+Le sujet propose de combiner detection par expressions regulieres et classification ML. Les deux approches sont complementaires dans ce projet.
+
+**Couche 1 : Regex avec post-validation**
 
 | Pattern | Validation supplementaire |
 |---------|--------------------------|
-| Carte bancaire | Algorithme de Luhn (elimine les faux positifs) |
+| Carte bancaire | Algorithme de Luhn (elimine les faux positifs mathematiquement) |
 | Numero de securite sociale | Verification de la cle INSEE |
-| Telephone francais | Couverture etendue a tous les indicatifs 0[1-9], `+33`, `0033` |
+| Telephone francais | Couverture de tous les indicatifs 0[1-9], `+33`, `0033` |
 | Email | Regex robuste avec sous-domaines et TLDs longs |
-| JWT, cle API, IBAN, IPv4 | Patterns specifiques sans validation supplementaire |
+| JWT, cle API, IBAN, IPv4 | Patterns specifiques |
+
+La validation algorithmique (Luhn, cle INSEE) est essentielle : sans elle, n'importe quelle suite de 16 chiffres serait classee comme carte bancaire, ce qui produirait un taux de faux positifs inacceptable.
+
+**Couche 2 : Classification ML pour les mots de passe**
+
+Le sujet propose trois classifieurs : Naive Bayes, Random Forest, SVM.
+
+| Classifieur propose | Analyse | Decision |
+|--------------------|---------|----------|
+| Naive Bayes | Suppose l'independance des features, ce qui est faux pour nos features (longueur et entropie sont correlees) | Ecarte |
+| SVM | Sensible au choix du noyau et de C, moins interpretable, pas d'acces direct aux feature importances | Ecarte |
+| Random Forest | Gere naturellement les features mixtes (continues et binaires), robuste aux valeurs aberrantes, permet d'inspecter `feature_importances_`, class_weight configurable | Retenu |
+
+Features extraites pour chaque token candidat : longueur, entropie de Shannon, ratio majuscules/minuscules/chiffres/speciaux, presence simultanee des trois classes de caracteres.
+
+**Metrique prioritaire : le rappel (recall)**
+
+Un faux negatif (donnee sensible non detectee et donc stockee en clair) est bien plus couteux qu'un faux positif (valeur banale masquee par erreur). Le seuil de classification est donc ajuste pour maximiser le rappel, quitte a sacrifier un peu de precision.
 
 **Redaction intelligente :**
 
-Les valeurs ne sont jamais stockees en clair dans `detections.json`. Seul leur hache SHA-256 et leur longueur sont conserves. La redaction preserve le format lisible (`alice@***.com`, `**** **** **** 9012`, `** ** ** ** 78`).
-
-**Choix Random Forest :** gere naturellement les features mixtes (continues et binaires), robuste aux valeurs aberrantes, permet d'inspecter `feature_importances_`. La metriques prioritaire est le rappel (recall) : un faux negatif (donnee sensible non detectee) est bien plus couteux qu'un faux positif.
+Les valeurs detectees ne sont jamais stockees en clair dans `detections.json`. Seul leur hache SHA-256 et leur longueur sont conserves. La redaction dans les logs preserve le format lisible (`alice@***.com`, `**** **** **** 9012`, `** ** ** ** 78`) pour faciliter l'audit sans exposer les donnees reelles.
 
 ---
 
 ### Tache 9 — Visualisations (dashboard Streamlit)
 
-Le dashboard (`extension/dashboard.py`) propose cinq vues :
+#### Choix de la bibliotheque : Streamlit + Plotly
+
+Le sujet propose cinq bibliotheques : Matplotlib, Seaborn, Plotly, Dash, Streamlit.
+
+**Justification du choix :**
+
+| Bibliotheque proposee | Analyse | Decision |
+|----------------------|---------|----------|
+| Matplotlib / Seaborn | Graphiques statiques, aucune interactivite, rendu web complexe | Ecartees |
+| Dash | Tres puissant mais architecture complexe (callbacks, layouts), verbeux pour un dashboard de supervision | Ecartee |
+| Plotly (seul) | Graphiques interactifs mais manque l'ossature applicative (widgets, layout, rafraichissement) | Integre a Streamlit |
+| Streamlit + Plotly | Streamlit fournit les widgets et le rafraichissement, Plotly fournit les graphiques interactifs. Combinaison rapide a developper et naturelle pour un dashboard de supervision | Retenue |
+
+**Cinq vues implementees :**
 
 | Vue | Contenu |
 |-----|---------|
@@ -328,7 +394,38 @@ Le dashboard (`extension/dashboard.py`) propose cinq vues :
 | Donnees sensibles | Donut des types detectes, liste des detections recentes |
 | Logs bruts | Affichage paginable du fichier `log.txt` |
 
-**Absence de cache :** la fonction `load_all()` lit directement les fichiers JSON a chaque cycle de rafraichissement. L'ancien `@st.cache_data(ttl=3)` qui bloquait la mise a jour des donnees a ete supprime.
+**Rafraichissement temps reel :**
+
+La fonction `load_all()` lit directement les fichiers JSON a chaque cycle de rafraichissement. Le dashboard utilise `st.rerun()` pour re-executer integralement le script toutes les N secondes, garantissant que les nouvelles donnees capturees apparaissent immediatement.
+
+---
+
+### Tache 10 — Generation automatisee de rapports
+
+#### Format retenu : HTML genere par Jinja2 + Plotly
+
+Le sujet propose quatre formats : HTML, PDF, Markdown+pandoc, Notebook Jupyter.
+
+**Justification :**
+
+| Format propose | Analyse | Decision |
+|----------------|---------|----------|
+| PDF (reportlab/weasyprint) | Standard professionnel mais perte de l'interactivite des graphiques | Ecarte |
+| Markdown + pandoc | Necessite une chaine d'outils externe (pandoc), pas adapte aux graphiques interactifs | Ecarte |
+| Notebook Jupyter | Bon pour la reproductibilite mais lourd a partager, necessite Jupyter pour la lecture | Ecarte |
+| HTML (Jinja2 + Plotly) | Interactif, auto-contenu, lisible dans n'importe quel navigateur sans installation | Retenu |
+
+La fonction `generate_html_report()` charge les donnees JSON, construit les graphiques Plotly, et rend le tout via un template Jinja2 dans `data/report.html`.
+
+---
+
+### Partie V — Extensions implementees
+
+| Extension | Module | Description |
+|-----------|--------|-------------|
+| B | `extension/app_context.py` | Capture de l'application active (Windows/Linux/macOS) avec fallback `pygetwindow` |
+| C | `extension/encryption.py` | Chiffrement AES-256-GCM avec derivation de cle PBKDF2-SHA256 (480 000 iterations, OWASP 2023) |
+| D | `extension/dashboard.py` | Dashboard Streamlit temps reel avec rafraichissement via `st.rerun()` |
 
 ---
 
@@ -353,7 +450,7 @@ Frappes clavier
        +--→ metadata.json  delais, types de touches (append, max 10 000 entrees)
 
 [dashboard Streamlit]
-  → lecture directe des fichiers JSON sans cache
+  → lecture directe des fichiers JSON
   → st.rerun() toutes les N secondes
   → indicateur de fraicheur (age du dernier log.txt)
 ```
